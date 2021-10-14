@@ -1,0 +1,792 @@
+---
+title: "mandatory1"
+author: "Samuel Opare"
+date: "11 October 2021"
+output:
+  pdf_document: default
+  html_document: default
+fig.width: 4.5
+fig.height: 4.5
+---
+
+```{r setup, include=FALSE}
+library(MASS)
+library(GGally)
+library(ggplot2)
+library(class)
+library(dplyr)
+options(warn=-1)
+
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+
+
+\def\Q#1{{\bf Q}#1: }
+
+
+\emph{STA530 Statistical learning, autumn 2021.}
+\vspace*{10mm}
+\centerline{\Large {\bf  Mandatory exercise 1 }} 
+
+
+\vspace*{18mm}
+
+
+
+\underline{\bf Problem 1:}
+
+
+
+In this problem we shall work with a data set on speed records for planes. You find the data in the file `Speed_records.csv`. First load the data and take a look at the first few lines:
+
+```{r,echo=TRUE,eval=TRUE}
+planes <- read.csv2("C:/Users/Sammy/Downloads/STA530/STA530-mandatory1/Speed_records.csv")
+summary(planes)
+```
+
+For each plane the following information is recorded:
+
+* `speed`: Speed record (in km/h)
+* `length`: Length (in meters)
+* `thrust`: Thrust (in kN) 
+* `power`: Power (in kW)
+* `weight`: Weight (in ton)
+* `plane`: Name of the plane
+* `type`:  Plane type, either `Propeller` or `Jet`
+ 
+We will use `speed` as our response variable. The `plane` variable will not be used so we remove this variable from the data:
+```{r,echo=TRUE,eval=TRUE}
+planes <- planes[,-6]
+```
+We will work with the entire data set in
+this exercise, i.e. no splitting into test and training set.
+
+
+## a) 
+
+\Q{1} Explore the data with illustrative plots. Comment on what you see in the plots.
+```{r}
+library(GGally)
+ggpairs(planes, progress = FALSE, binwidth=30, cardinality_threshold=95)
+```
+Ans: We observe a very strong correlation between most of the variables. and the lowest correlation between weight and speed of 0.464. There also seems to be a linear pattern between most of variables with a few outliers. 
+
+
+Fit a regression model including all predictors (except `plane` which we removed):
+```{r,echo=TRUE,eval=FALSE}
+model1 <- lm(speed~length+thrust+power+weight+type,data=planes)
+summary(model1)
+```
+We call this `model1`. 
+
+\Q{2} Explain what the following five quantities in the `summary`-output is: `Estimate`,  `Std.Error`,  `t value`,   `Pr(>|t|)` and  `Residual standard error`.
+
+Ans:
+
+1. `Estimate`: The estimate of each variable determines how much the response value would change if a the variable is increased by one and all other variables are held constant.
+
+2. `Std.Error`: Standard error refers to the difference between the estimated value of predicted value, $\hat\beta$  and the actual value of $\beta$ .
+
+3. `t value`: The t-test is used to test the confidence interval of each $\beta$ estimates deviation from 0.
+
+4. `Pr(>|t|)`: The p-value of the t-value is used to determine if the variable is statistically significant using a null hypothesis. If the p-value is less then 0.05 we reject the null hypothesis.
+
+5. `Residual standard error`: Residual standard error is an estimate of $\sigma$ from the data. 
+
+
+\begin{math}
+\begin{aligned}
+ RSE = \sqrt{RSS/(n-2)}
+\end{aligned}
+\end{math}
+
+
+\Q{3} Is there a relationship between the predictors and the response variable in `model1`? Explain briefly. 
+
+Ans: There is a relationship between the predictors and the response variables since all the p-values of the predictors are lower than 0.05
+
+\Q{4} How large proportion of the variation in the speed records is explained by the predictors included in `model1`?
+
+Ans: The proportion of variation explained by the predictors is determined by $R^2 = 0.8793$
+\vspace*{5mm}
+
+## b) 
+
+\Q{1} What is the VIF measuring? Is the VIF factor a suitable measure for the  `type` predictor? 
+Ans: VIF is a measure of collinearity between predictors. The VIF is not a suitable measure for the type predictor because it is categorical.
+
+\Q{2} Calculate the VIF factor for the predictors included in  `model1` and comment on the result.  Explain why `model2` below might be preferable to `model1`. 
+```{r}
+#library(car)
+library(usdm)
+vif(cbind.data.frame(planes$length,planes$thrust,planes$power,planes$weight,planes$type)) #computes variance information
+```
+Ans: The VIF values for each predictor except weight and type is greater than 10. This means there is high collinearity in model1.
+Removing 'thrust' from the predictors will reduce the collinearity and give an improved model.
+
+```{r,echo=TRUE,eval=TRUE}
+model2 <- lm(speed~length+power+weight+type,data=planes)
+summary(model2)
+```
+
+\Q{3} Calculate the studentized residuals (see Section 3.3.3 in the textbook) for `model2`  and plot these residuals against each of the four predictor, against the predicted values ($\hat{y}$) and make a normal QQ plot of the residuals. Try to place all these six plots in the same figure. Comment what you see in the plots. 
+
+`R` hints: Use `rstudent(model2)` to calculate the studentized residuals. Use e.g. `boxplot(resmod2~planes$type)` to make the plot against the `type` predictor (assuming `resmod2` is a vector with the residuals).
+
+```{r}
+
+#calculate studentized residuals
+stud_resids <- rstudent(model2)
+par(mfrow=c(2,2))
+#plot type vs. studentized residuals
+boxplot(stud_resids~planes$type)
+#add horizontal line at 0
+abline(0, 0)
+#plot length vs. studentized residuals
+plot(stud_resids~planes$length)
+abline(0, 0)
+#plot power vs. studentized residuals
+plot(stud_resids~planes$power)
+abline(0, 0)
+#plot weight vs. studentized residuals
+plot(stud_resids~planes$weight)
+abline(0, 0)
+
+```
+
+
+```{r}
+#QQ plot of residuals
+ggplot(model2, aes(sample = .stdresid)) + stat_qq(pch = 19) + geom_abline(intercept = 0, slope = 1, linetype = "dotted") + labs(x = "Theoretical quantiles", y = "Standardized residuals", title = "Normal QQ")
+```
+Ans: The residuals bounce randomly around the 0 line. This means that the relationship is linear. The residuals roughly form a "horizontal band" around the 0 line. This suggests that the variances of the error terms are equal and  there are a few potential outliers. 
+
+\Q{4} Make a plot of studentized residuals versus leverage. Based on this plot and the residual plots above, discuss whether observation number 59 ought to be removed or not. What are the argument(s) for removing this observation, and what are the argument(s) against? 
+
+```{r}
+
+plot(model2, which=5) # leverage statistics
+
+
+```
+Ans: Observation 59 can be left since it is not an influential observation though it is an outlier. 
+
+In the remainder of this problem we choose to remove observation 59:
+```{r,echo=TRUE,eval=TRUE}
+planes2 <- planes[-59,]  # Remove observation 59
+```
+
+
+\Q{5} Fit `model2` with the data set with observation 59 removed. Compare the summary output for `model2` for the two fits (with and without observation 59). Comment/explain the differences you see. 
+```{r}
+model2 <- lm(speed~length+power+weight+type,data=planes2)
+summary(model2)
+
+```
+Ans: All coefficients in model2 without observation 59 are statistically significant while in the model2 with observation 59 length was not. The residual standard error also reduced from 388 to 352
+
+\vspace*{5mm}
+
+## c) 
+
+Now we fit a model with only `power` and a model with `power` and `type`. 
+```{r,echo=TRUE,eval=FALSE}
+model3 <- lm(speed~power,data=planes2)
+summary(model3)
+model4 <- lm(speed~power+type,data=planes2)
+summary(model4)
+```
+
+\Q{1} Compare the estimated regression coefficient for `power` in the two models above. How can this difference be explained? What do we call this type of effect? 
+
+Ans: We call this effect interaction. There is a relationship between power and type.
+
+
+Now fit a model which also includes an interaction term: 
+```{r,echo=TRUE,eval=TRUE}
+model5 <- lm(speed~power+type+power:type,data=planes2)
+summary(model5)
+```
+
+
+\Q{2} Is there an interaction effect between `power` and `type`? What does an interaction effect mean in practice in this case? 
+
+Ans: The p-value for the interaction effect coefficient is statistically significant hence there is some interaction effect between `power` and `type`. The interaction effect in practice means the effect of power on speed is influenced by the variable type hence the interpretation of the model is incomplete or misleading.
+
+
+\Q{3} Using the model with interaction term (`model5`), calculate without using `R`: i) The predicted speed record for a plane of type `Propeller` with a power of 500 kW, and ii) The predicted speed record for a plane of type `Jet` with a power of $100\,000$ kW.  
+
+Ans:
+
+i. 
+
+\begin{math}
+\begin{aligned}
+ y = \beta_0 + \beta_1*power + \beta_2*type + \beta_2*type*power\\
+ y = 1707+0.003201*500-1542*1+0.3469*500\\
+ = 340.05 km/h
+\end{aligned}
+\end{math}
+
+ii. 
+\begin{math}
+\begin{aligned}
+ y = \beta_0 + \beta_1*power + \beta_2*type + \beta_2*type*power\\
+ y = 1707+0.003201*100000\\
+ = 2027.1 km/h
+\end{aligned}
+\end{math}
+
+\Q{4} Illustrate the model with interaction term by making a scatter-plot of speed record (`speed`) versus  `power` (`power` on the $x$-axis), where the data points for planes of type `Jet` and `Propeller` have different colors. Add the estimated regression line for `Jet` planes and the estimated regression line for `Propeller` planes to the plot.
+
+```{r}
+
+plane_plot = ggplot(planes2, aes(x=power, y=speed, 
+                              color=type))+geom_point()
+plane_plot+ geom_smooth(method = "lm", se = FALSE)
+
+```
+
+\vspace*{5mm}
+
+## d)
+
+We now consider all predictors, except `thrust`.  
+
+\Q{1} Fit a model with the predictors `length`, `power`, `weight`, `type` and interaction terms for interactions between `type` and each of the three other predictors. Call this model `model6`. Test by a hypothesis test whether the three interaction terms together make a significant contribution to the model. Also compare the model with the interaction terms included  with the model without the interaction terms  by other relevant quantities and comment.   
+
+```{r}
+model6 <- lm(speed~length+power+weight+type+power:type+length:type+weight:type,data=planes2)
+summary(model6)
+```
+Ans: We accept the null hypothesis test for the interaction terms because all three interaction terms p-values are greater than 0.05. Hence they are statistically insignificant.The residual standard error is higher in model without interaction. However, R-squared and adjusted R-squared are lower.
+
+
+\Q{2} Run best subset selection with the predictors included in `model6` (i.e. `length`, `power`, `weight`, `type` and the three interaction terms). Make plots which show the results for the criteria adjusted-$\text{R}^2$, $C_p$  and BIC. Comment the results.
+
+```{r}
+library(leaps)  # For subset selection
+mod.bestsub = regsubsets(speed~length+power+weight+type+power:type+length:type+weight:type, data=planes2)
+mod.summary = summary(mod.bestsub)
+# Find the model size for best cp, BIC and adjr2
+cat("Lowest Cp:", which.min(mod.summary$cp),"\n")
+cat("Lowest BIC:", which.min(mod.summary$bic),"\n")
+cat("Highest Adjusted r2:", which.max(mod.summary$adjr2),"\n")
+```
+```{r}
+# Plot cp, BIC and adjr2
+par(mfrow=c(1,3))
+plot(mod.summary$cp, xlab="Subset Size", ylab="Cp", pch=20, type="l")
+points(6, mod.summary$cp[6], pch=4, col="red", lwd=7)
+plot(mod.summary$bic, xlab="Subset Size", ylab="BIC", pch=20, type="l")
+points(5, mod.summary$bic[5], pch=4, col="red", lwd=7)
+plot(mod.summary$adjr2, xlab="Subset Size", ylab="Adjusted R2", pch=20, type="l")
+points(7, mod.summary$adjr2[7], pch=4, col="red", lwd=7)
+```
+Ans: We find that models with Cp, BIC and Adjusted R2 values of  6, 5, and 7 respectively are selected.
+
+When we fit a regression model with interaction terms, the main terms for the factors in the interaction terms should also be included in the model. I.e., if we fit a model with an interaction term between predictor A and predictor B, then predictor A alone and predictor B alone should also be included in the model.
+
+\Q{3}  Will the requirement for inclusion of main terms together with interaction terms described  above necessarily be fulfilled in all steps of the basic best subset algorithm (when applied to a model where we include interaction terms)?  Check if there are any issues of this sort here by considering the models fitted in each step of the best subset selection algorithm.  
+
+Ans: Subset Selection would only include interaction terms when the main variables involved in the interaction are included in the model. Hence, this requirement will not be fulfilled in all steps of the basic best subset algorithm.
+ 
+\Q{4} Consider the issue with interaction terms and inclusion of main effects discussed in the previous question. Is this issue a potential problem for any of the methods ridge regression, lasso, PCR or PLS (if we want to fit a model which includes interaction terms)? Explain why/why not.    
+ 
+Ans: There might be a problem fitting with lasso because it may shrink certain coefficients to 0, thereby dropping the main effects. Ridge Regression, PCR and PLS will perform better because the main effects are kept and the model does not get affected negatively by interaction.
+
+
+## e) 
+
+\Q{1}  For the same set of predictors as in  `model6` (i.e. `length`, `power`, `weight`, `type` and the three interaction terms), run ridge regression and lasso. For each of the methods, make a plot of the coefficient path as a function of log($\lambda$), and a corresponding plot of the cross-validation mean squared error (CV-MSE).
+
+Ans:
+
+
+Ridge Regression plots
+```{r}
+library(glmnet)
+#Ridge Regression
+x_all <- model.matrix(speed~length+power+weight+type+power:type+length:type+weight:type,data=planes2)[,-1]
+x_all <- scale(x_all)
+y_all <- planes2$speed
+
+lambdas <- 10^seq(-2, 7,length=100)
+model_ridge <- glmnet(x_all,y_all, alpha = 0, lambda = lambdas, standardize = TRUE)
+# cross-validation MSE
+set.seed(1)
+cv.out=cv.glmnet(x_all, y_all,alpha=0,lambda = lambdas)
+
+best_lambda_ridge <- cv.out$lambda.min
+lambda.best_ridge = cv.out$lambda.1se
+cat("Minum CV_MSE for lambda =",round(best_lambda_ridge,2))
+
+fit_ridge <- glmnet(x_all, y_all,alpha=0,lambda = best_lambda_ridge)
+fit_ridge2 <- glmnet(x_all, y_all,alpha=1,lambda = lambda.best_ridge)
+
+cat("Minimum 1se for lambda =",round(lambda.best_ridge,2))
+
+# Plot with optimal lambda added
+model_ridge_sd <- glmnet(x_all,y_all, alpha = 0, lambda = lambdas)
+
+par(mfrow=c(1,2))
+plot(cv.out, ylab="CV-MSE")
+plot(model_ridge_sd, xvar = "lambda", label = TRUE, 
+            ylab="Standardized coefficients")
+legend("topright",c("length","power","weight","type","power:type","length:type","weight:type"),lty=1,col=1:7)
+abline(v=log(cv.out$lambda.min),lty=3)
+```
+
+Lasso plots
+
+```{r}
+
+#lasso
+model_lasso <- glmnet(x_all,y_all, alpha = 1, lambda = lambdas)
+cv.lasso <- cv.glmnet(x_all,y_all, alpha = 1, lambda = lambdas)
+
+best_lambda_lasso <- cv.lasso$lambda.min
+lambda.best.lasso = cv.lasso$lambda.1se
+
+fit_lasso <- glmnet(x_all, y_all,alpha=1,lambda = best_lambda_lasso)
+fit_lasso2 <- glmnet(x_all, y_all,alpha=1,lambda = lambda.best.lasso)
+cat("Minum CV_MSE for lambda =",round(best_lambda_lasso,2))
+cat("Minimum 1se for lambda =",round(lambda.best.lasso,2))
+
+# Plot with optimal lambda added
+model_lasso_sd <- glmnet(x_all,y_all, alpha = 1, lambda = lambdas)
+par(mfrow=c(1,2))
+plot(cv.lasso, ylab="CV-MSE")
+plot(model_lasso, xvar = "lambda", label = TRUE, ylab="Standardized coefficients")
+legend("topright",c("length","power","weight","type","power:type","length:type","weight:type"),lty=1,col=1:7)
+
+
+```
+
+
+\Q{2} Report in the same table the fitted model for the following six models: 1) The model from best subset selection suggested by the adjusted-$\text{R}^2$ criteria, 2) The model from best subset selection suggested by the BIC criteria,  3) ridge regression with $\lambda$ chosen according to the minimum CV-MSE, 4) ridge regression with $\lambda$ chosen according to the one standard error rule, 5)
+lasso with $\lambda$ chosen according to the minimum CV-MSE, 6) lasso with $\lambda$ chosen according to the one standard error rule.
+
+```{r}
+library(kableExtra, warn.conflicts = FALSE)
+kable(rbind(c("Sub Sel(Adjr2)",round(mod.summary$adjr2,1)),
+            c("Sub Sel(BIC)",round(mod.summary$bic,1)),
+            c("Lasso(CV-MSE)",round(fit_lasso$beta[,1],1)),
+            c("Lasso(1se)",round(fit_lasso2$beta[,1],1)),
+            c("Ridge(CV-MSE)",round(fit_lasso$beta[,1],1)),
+            c("Ridge(1se)",round(fit_ridge2$beta[,1],1))))
+```
+
+\Q{3} Compare and comment the six fitted models. Which further steps should we now ideally have been able to do to conclude on a best model? 
+
+Finally we consider PCR and PLS.
+
+\Q{4} When doing PCR and PLS, why can we include `thrust` together with the other predictors with less concern than with the other methods considered? 
+Ans: We can include `thrust` because PCR and PLS tend to resolve the problem of collinearity.
+
+\Q{5} Run PCR and PLS using all predictors (including `thrust`), but no interaction terms. Make validation plots and comment whether it seems to be possible to achieve some dimension reduction with these approaches. 
+
+
+
+PCR Fit
+
+```{r}
+library (pls, warn.conflicts = FALSE)
+
+set.seed(2)
+
+pcr.fit = pcr(speed~., data=planes2, scale=FALSE, validation="CV")
+#summary (pcr.fit)
+validationplot(pcr.fit, val.type="MSEP")
+```
+
+```{r}
+
+set.seed(2)
+
+pls.fit = plsr(speed~., data=planes2, scale=FALSE, validation="CV")
+#summary (pls.fit)
+validationplot(pls.fit, val.type="MSEP")
+```
+Ans: The PCR and PLS models seem to reduce the dimensionality slightly.
+
+
+
+\newpage
+
+
+\underline{\bf Problem 2:}
+
+
+One of the useful quantities to evaluate a linear regression fit is the adjusted-$\text{R}^2$. This quantity is usually reported without any indication of its uncertainty. In this problem we shall consider how bootstrapping can be used to find an estimate of the standard deviation of the adjusted-$\text{R}^2$. We shall still use the speed record data as example case. 
+
+## a) 
+
+\Q{1} Explain how we can use bootstrapping to estimate the standard deviation of adjusted-$\text{R}^2$. Write down the stepwise procedure. 
+
+Ans: Bootstrapping enables us to estimate the empirical distribution of the data. This can then help us perform an estimation of estimators such as the standard deviation of adjusted-$\text{R}^2$. 
+
+the procedure:
+
+1. We draw B bootstrap samples with replacement from the original data.
+2. We evaluate the adjusted-$\text{R}^2$ on the B samples
+3. Estimate standard deviation of the estimator, adjusted-r.
+
+\Q{2}  Use bootstrapping to find an estimate of the standard deviation of adjusted-$\text{R}^2$ for the regression model with `speed` as response variable, and `power`,  `weight` and `type` as predictor variables. 
+(Hint: You can get the adjusted-$\text{R}^2$ in `R` by: 
+`summary(lm(speed~power+weight+type,data=planes))$adj.r.squared` )
+Ans:
+```{r}
+boot.fn <- function(data, index) {
+    #d <- data[index,]
+    fit <- summary(lm(speed~power+weight+type,data=data,subset = index))$adj.r.squared
+    return (fit)
+}
+```
+```{r}
+
+set.seed(1)
+library(boot)
+bootval = boot(planes, boot.fn, 10000)
+bootval
+cat("Standard deviation of adjusted-r-squared ",sd(bootval$t))
+```
+
+
+
+\Q{3} Make a histogram of the estimated bootstrap distribution of the adjusted-$\text{R}^2$. 
+
+```{r}
+hist(bootval$t, col = "blue", main = "Histogram of Boostrap adjsusted-rsq estimates")
+```
+
+
+\Q{4}  Comment the results. Is the uncertainty in the estimated adjusted-$\text{R}^2$ large? Why/why not?
+ 
+```{r}
+boot.ci(boot.out=bootval)
+```
+Ans: The uncertainty is not very large. Given the bootstrap sample size, the a standard deviation of 0.026 and a confidence interval of ( 0.7896,  0.8900 ) is acceptable.
+
+
+\newpage
+
+
+\underline{\bf Problem 3:}
+ 
+In this problem we shall work with a data set on survival of birds followed at five different regions in mid Norway. You find the data in the file `Birds.csv`.  For each bird the following information is recorded:
+
+* `survival`: Whether the bird survived to the next year, coded as 1 if survival, 0 otherwise
+* `sex`: Sex of the bird, 0 for female, 1 for male.
+* `hday`: Day in the year the bird was hatched (numbered from 1 to 365)
+* `csize`: Size of the clutch the bird was born in.
+* `year`: Year the bird was born
+* `region`:  Region the bird was born in (categorical variable)
+* `ic`:  Inbreeding coefficient
+* `Hp`:  Proportion of heterozygous loci
+* `Hn`:  Number of heterozygous loci
+* `GTn`: Number of genotyped microsatellite loci
+
+Do not be concerned if you do not understand the meaning of the four last variables. In most analyses we will use `survival` as our response variable. 
+
+Load the data, code `survival` and `region` as factor variables and make a plot of the data: 
+```{r,echo=TRUE,eval=TRUE}
+birds <- read.csv2("Birds.csv")
+birds$survival <- as.factor(birds$survival)
+birds$region <- as.factor(birds$region)
+library(GGally)
+library(ggplot2)
+ggpairs(birds, ggplot2::aes(color=survival),progress = FALSE)
+```
+
+Split the data into training and test as follows: 
+```{r,echo=TRUE,eval=TRUE}
+b_train <- birds[1:240,]
+b_test <- birds[241:290,]
+survival = b_test$survival
+```
+
+
+
+## a) 
+
+\Q{1} What should be the case for the order of the data for using a deterministic split into training and test data as we did above? Would such a splitting work well in case the data was sorted in a particular order?  
+
+Ans: The data should be shuffled in order for the samples in each split to be randomly selected from each category. This splitting would not work if the data was sorted in a specific order. There wouldn't be enough observations from each class.
+
+Fit a logistic regression model to the training data using only `hday` as predictor variable: 
+```{r,echo=TRUE,eval=TRUE}
+bmod1 <- glm(survival ~ hday , data=b_train, family = "binomial")
+summary(bmod1)
+```
+
+\Q{2} Write down an expression for the estimated probability that a bird survive (`y=1`) as a function of `hday`, according to the logistic regression model. Without using `R`, calculate the estimated probability that a bird hatched on day 80 (i.e. with `hday=80`) will survive. Do the same for a bird hatched on day 125.
+
+
+\begin{math}
+\begin{aligned}
+ P(y=1) = \frac{\exp(\beta_0+\beta_1*x_1)}{1+\exp(\beta_0+\beta_1*x_1)}
+ = \frac{\exp(-2.7145+0.0229*x_1)}{1+\exp(-2.7145+0.0229*x_1)}\\
+ \\
+ P(y=1|x_1 = 80) = \frac{\exp(-2.7145+0.0229*80)}{1+\exp(-2.7145+0.0229*80)} = 0.293\\
+ \\
+ P(y=1|x_1 = 125) = \frac{\exp(-2.7145+0.0229*125)}{1+\exp(-2.7145+0.0229*125)} = 0.537\\
+\end{aligned}
+\end{math}
+
+
+\Q{3} Calculate the cut-point for `hday` where the estimated probability of survival crosses 0.5. (I.e. the point where values of `hday` on one side corresponds to a survival probability of less than 0.5 and values on the other side corresponds to a survival probability of more than 0.5.)
+
+
+```{r}
+survival = b_test$survival
+glm.prob = predict(bmod1, b_train, type="response")
+glm.pred = ifelse(glm.prob>.5, 1, 0)
+res=table(glm.pred, b_train[,1])
+sensitivity=res[2,2]/sum(res[,2])
+specificity=res[1,1]/sum(res[,1])
+cat("Sensitivity",sensitivity)
+cat("\nSpecificity",specificity)
+
+```
+
+Fit a logistic regression model to the training data using `hday` and `hday` squared as predictor variables: 
+```{r,echo=TRUE,eval=FALSE}
+bmod2 <- glm(survival ~ hday+I(hday^2) , data=b_train, family = "binomial")
+summary(bmod2)
+```
+
+\Q{4} Write down the equation you for this model need to solve to find the cut-points for values of `hday` where the  estimated probability of survival crosses 0.5.  Try to solve the equation. What happens? Give a practical interpretation. 
+
+
+\begin{math}
+\begin{aligned}
+ P(y=1) = \frac{\exp(\beta_0+\beta_1x_1+\beta_2x_1^2)}{1+\exp(\beta_0+\beta_1x_1+\beta_2x_1^2)}
+ = \frac{\exp(-9.3839+0.1776x_1-0.0009x_1^2)}{1+\exp(-9.3839+0.1776x_1-0.0009x_1^2)}\\
+\end{aligned}
+\end{math}
+
+
+\Q{5} For both models fitted above, use `R` to make a plot of the estimated survival probability as a function of `hday`, for `hday` in the range from 45 to 125. Comment the result. Which model seems most reasonable?
+
+
+Ans: bmod2 seems to be the better model because it gives a slightly smaller test error compareed to bmod1. Hence it might fit the data a little better.
+
+
+## b) 
+
+Fit a logistic regression model including all predictors except `year`:
+
+```{r,echo=TRUE,eval=TRUE}
+bmod3 <- glm(survival ~ poly(hday,2)+sex+csize+region+ic+Hp+Hn+GTn, 
+             data=b_train, family = "binomial")
+
+summary(bmod3)
+```
+
+\Q{1} Is `region` giving a significant contribution to the model? Formulate this as a hypothesis test. Perform the hypothesis test in `R` (Hint: See the course note on Maximum likelihood estimation.) 
+
+```{r}
+bmod31 <- glm(survival ~ poly(hday,2)+sex+csize+region-1+ic+Hp+Hn+GTn, 
+             data=b_train, family = "binomial")
+#summary(bmod31)
+anova(bmod3, bmod31, test="LRT")
+```
+
+Ans: We conduct a test with the hypothesis that each individual coefficient of region is 0. The likelihood ratio test conducted shows that the variable region is highly significant hence should remain in the model. 
+
+\Q{2} We have here decided not to include `year` in the model. In case we were to include `year` would it be most reasonable to include it as a linear or a categorical predictor? Explain. 
+
+Ans: It would be more meaningful to add year as a categorical predictor.
+
+Stepwise model selection based on AIC for logistic regression models can be run using the `stepAIC` function in the `MASS`  library.
+
+\Q{3} Use the help function for `stepAIC` to find out how to use it, and run a backward stepwise model
+selection (starting with the predictors included in `bmod3` above). Fit the model suggested by the backward stepwise selection. 
+
+```{r}
+backstep <- stepAIC(bmod3, direction = "backward", trace = FALSE)
+backstep$anova
+```
+```{r}
+modbackstep <- glm(survival ~ poly(hday, 2) + sex + csize + region + Hp + Hn, data=b_train, family = "binomial")
+
+summary(modbackstep)
+```
+
+
+
+\Q{4} Assume that we use that rule that we predict that a bird survives  (`y=1`) when the estimated
+probability is at least 0.5. Use this rule and the model from question 3 above (or the model from before question 1 in case you did not manage to do question 3) and calculate the confusion table, sensitivity, specificity and misclassification rate for the test data. Comment the results.
+
+```{r}
+
+glm.prob3 = predict(bmod3, b_test[,-1], type="response")
+glm.pred3 = ifelse(glm.prob3>=.5, 1, 0)
+table(glm.pred3, survival)
+cat("\n Sensitivity: ",10/(10+7))
+cat("\n Specificity: ",30/(30+3))
+cat("\n Misclassification rate: ",mean(glm.pred3 != survival))
+
+```
+
+
+\Q{5} Make the ROC curve and calculate AUC for the model in question 3 above (or the model from before question 1 in case you did not manage to do question 3).  Discuss what the ROC curve indicates about the properties we could obtain for other cut-offs than 0.5. 
+
+```{r}
+
+library(pROC)
+su_roc = roc(survival, glm.prob3, legacy.axes=TRUE)
+ggroc(su_roc)+ggtitle("ROC curve")+ 
+  annotate("text", x = 0.25, y = 0.30, label = paste("AUC =",round(su_roc$auc,3)))
+
+```
+
+
+
+
+## c)  
+
+\Q{1} For LDA applied to a two-class problem (with the classes labeled 0 and 1), write down the formula to calculate $P(Y=1|x)$ when $x$ is a scalar predictor ($p=1$).  Starting from this formula, derive an expression for the value of $x$ where the estimated probability of survival crosses 0.5 (i.e. the decision boundary between the two classes).
+
+
+
+\Q{2} Use the formulas from the previous question, insert appropriate parameter estimates and calculate the estimated probability  that a bird hatched on day 80 (i.e. `hday=80`) will survive (according to an LDA model with `hday` as the only predictor). Do the same for a bird hatched on day 125. Also calculate the decision boundary. Compare to the same quantities calculated with logistic regression. 
+
+
+\Q{3} Use QDA and calculate the estimated probabilities that a bird hatched on, respectively, day 80 and day 125 will survive (for a model with `hday` as the only predictor). Compare to the results for logistic regression displayed in the plot in the last question in point a) and comment the results. 
+
+\Q{4} Fit LDA and QDA with the same predictors as the model in question 3 in point b) (or the model from before question 1 in point b) in case you did not manage to do question 3).  For both LDA and QDA, calculate the confusion table and the misclassification error rate on the test set data. Compare and comment.
+
+```{r}
+lda.fit = lda(survival ~ poly(hday,2)+sex+csize+region+ic+Hp+Hn+GTn, 
+             data=b_train)
+lda.pred = predict(lda.fit, b_test)
+table(lda.pred$class, survival)
+
+cat("\n Missclassification Error rate(LDA): ",mean(lda.pred$class != survival))
+```
+```{r}
+
+qda.fit = qda(survival ~ poly(hday,2)+sex+csize+region+ic+Hp+Hn+GTn, 
+             data=b_train)
+qda.pred = predict(qda.fit, b_test)
+table(qda.pred$class, survival)
+
+cat("\n Missclassification Error rate(QDA): ",mean(qda.pred$class != survival))
+
+```
+
+Ans: There is not much difference in missclassification error. QDA is slightly better with a better classification for class 1.
+
+\Q{5} Which model (logistic regression, LDA or QDA) seems to be the best so far? Can we conclude anything around this with high certainty?  What further steps could we do to possibly find even better models?
+
+Ans: Logistic regression with predictors suggested by backward-stepwise AIC and Logistic regression seem to be the best models so far. We can try other variants of the predictors as well.
+
+
+
+## d) 
+
+In this last point we will not consider the `survival` variable anymore. We will now rather look at whether we can predict the `region` based on the other predictors. I.e. we will now use  `region` as the response variable and all the other variables (except `survival`) as potential predictors. 
+
+\Q{1} Why is logistic regression now not relevant to use?
+
+Ans: Logistic regression is not suitable because the number of classes involved now is more than 2.
+
+\Q{2} Fit LDA with the two predictors `hday` and `Hp`. Make a plot of the training data with `hday` on the $x$-axis, `Hp` on the $y$-axis and the region indicated by e.g. color codes or plotting symbols. Display the division into regions according to the LDA model in the plot. 
+
+```{r}
+
+
+bird0_plot = ggplot(b_train, aes(x=hday, y=Hp, 
+                              color=region))+geom_point(size=2.5)
+bird0_plot
+```
+
+```{r}
+bird_lda = lda(region~hday+Hp, data=b_train, prior=c(1,1,1,1,1)/5)
+
+testgrid = expand.grid(hday = seq(min(b_train[,3]-0.2), max(b_train[,3]+0.2), 
+              by=0.05), Hp = seq(min(b_train[,8]-0.2), max(b_train[,8]+0.2), 
+              by=0.05))
+
+res = predict(object = bird_lda, newdata = testgrid)
+region_lda = res$class
+postprobs=res$posterior
+
+bird_lda_df = bind_rows(mutate(testgrid, region_lda))
+birdlda_plot = bird0_plot + geom_point(aes(x = hday, y=Hp, 
+                            colour=region_lda), data=bird_lda_df, size=0.8)
+birdlda_plot
+```
+
+
+\Q{3} Repeat question 2 for QDA. 
+
+```{r}
+bird_qda = qda(region~hday+Hp, data=b_train, prior=c(1,1,1,1,1)/5)
+region_qda = predict(object = bird_qda, newdata = testgrid)$class
+
+bird_qda_df = bind_rows(mutate(testgrid, region_qda))
+bird_qda_df$region_qda = as.factor(bird_qda_df$region_qda)
+
+birdqda_plot = bird0_plot + geom_point(aes(x = hday, y=Hp, 
+                            colour=region_qda), data=bird_qda_df, size=0.8)
+birdqda_plot
+```
+
+
+\Q{4} Calculate the confusion table for both training and test data for both the LDA and the QDA model fitted in the two previous questions. Comment. 
+
+## Test data confusion matrix
+```{r}
+region = b_test$region
+birdlda.pred = predict(bird_lda, b_test)
+table(birdlda.pred$class, region)
+cat("\n Missclassification Error rate(LDA): ",mean(birdlda.pred$class != region),"\n")
+
+
+birdqda.pred = predict(bird_qda, b_test)
+table(birdqda.pred$class, region)
+cat("\n Missclassification Error rate(QDA): ",mean(birdlda.pred$class != region))
+
+
+```
+
+## Train data confusion matrix
+```{r}
+region = b_train$region
+birdlda.pred = predict(bird_lda, b_train)
+table(birdlda.pred$class, region)
+cat("\n Missclassification Error rate(LDA): ",mean(birdlda.pred$class != region),"\n")
+
+
+birdqda.pred = predict(bird_qda, b_train)
+table(birdqda.pred$class, region)
+cat("\n Missclassification Error rate(QDA): ",mean(birdlda.pred$class != region))
+
+
+```
+Ans: The misclassification for the train data seem much higher than the test data in both QDA and LDA. This may be because of the amount of data used in training.
+
+\Q{5} Fit LDA with the predictors `hday`, `Hp`, `Hn`, `GTn`, `ic`, `csize` and  `sex`. Calculate the confusion table for both training and test data, and compare with the result obtained with only `hday` and `Hp`. Why is it not possible to fit QDA with these predictors?
+
+```{r}
+bird_lda2 = lda(region~hday+Hp+Hn+GTn+ic+csize+sex, data=b_train, prior=c(1,1,1,1,1)/5)
+
+region = b_test$region
+birdlda2.pred = predict(bird_lda2, b_test)
+table(birdlda2.pred$class, region)
+cat("\n Missclassification Error rate(LDA): ",mean(birdlda2.pred$class != region),"\n")
+
+
+```
+```{r}
+region = b_train$region
+birdlda2.pred = predict(bird_lda2, b_train)
+table(birdlda2.pred$class, region)
+cat("\n Missclassification Error rate(LDA): ",mean(birdlda2.pred$class != region),"\n")
+```
+Ans: Both the training and test error rates are better for this model than the previous. It is not possible to fit QDA with these predictors because if the number of predictors are high QDA requires $k.p.(p+1)/2$ covariance parameters as compared to LDA which requires $p.(p+1)/2$. Hence QDA is more computationally expensive 
+
