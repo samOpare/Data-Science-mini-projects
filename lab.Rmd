@@ -1,0 +1,1440 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Ctrl+Shift+Enter*. 
+
+### Linear regression
+```{r}
+library(MASS)
+library(ISLR)
+```
+```{r}
+plot(Boston)
+```
+
+
+```{r}
+fix(Boston)
+names(Boston)
+```
+
+
+```{r}
+#?Boston
+lm.fit = lm(medv~lstat, data=Boston)
+attach(Boston)
+lm.fit = lm(medv~lstat)
+```
+
+
+```{r}
+summary(lm.fit)
+```
+
+
+```{r}
+names(lm.fit)
+```
+```{r}
+coef(lm.fit)
+```
+```{r}
+confint(lm.fit)
+```
+```{r}
+predict(lm.fit, data.frame(lstat=c(5,10,15)), interval = "confidence")
+```
+```{r}
+predict(lm.fit, data.frame(lstat=c(5,10,15)), interval = "prediction")
+```
+```{r}
+plot(lstat,medv, col="black", pch="+")
+abline(lm.fit, lwd=3, col = "red", ) #plots the residual errors
+```
+```{r}
+plot(1:25,1:25, col="black", pch=1:25)
+```
+```{r}
+par(mfrow=c(2,2))
+plot(lm.fit)
+```
+
+```{r}
+plot(predict(lm.fit), residuals(lm.fit))
+plot(predict(lm.fit), rstudent(lm.fit))
+```
+```{r}
+plot(hatvalues(lm.fit))# leverage statistics
+which.max(hatvalues(lm.fit))
+```
+
+```{r}
+lm.fit = lm(medv~lstat+age, data=Boston)
+summary(lm.fit)
+```
+```{r}
+lm.fit = lm(medv~., data=Boston)
+summary(lm.fit)$sigma #get RSE from the summary result
+```
+```{r}
+library(car)
+vif(lm.fit) #computes variance information
+```
+```{r}
+lm.fit1 = update(lm.fit, ~.-age) # run model with all predictors except age. both syntaxs can be used
+#lm.fit1 = lm(medv~.-age,data = Boston)
+summary(lm.fit1)
+```
+
+```{r}
+#including interaction terms: lstst + age + lstat * age ie. lstat and age have interaction
+summary(lm(medv~lstat*age, data = Boston))
+```
+
+```{r}
+#non linear transformation of variable
+lm.fit2 = lm(medv~lstat+I(lstat^2), data = Boston)
+summary(lm.fit2)
+```
+```{r}
+lm.fit = lm(medv~lstat, data=Boston)
+anova(lm.fit,lm.fit2)
+```
+```{r}
+par(mfrow=c(2,2))
+plot(lm.fit2)
+```
+
+```{r}
+lm.fit5 = lm(medv~poly(lstat,7))
+summary(lm.fit5)
+```
+```{r}
+summary(lm(medv~log(rm)), data=Boston)
+```
+```{r}
+fix(Carseats)
+names(Carseats)
+
+```
+
+```{r}
+lm.fit_cs = lm(Sales~.+Income:Advertising+Price:Age, data = Carseats)
+summary(lm.fit_cs)
+```
+```{r}
+attach(Carseats)
+contrasts(ShelveLoc) #shows contrast of dummy variables created by r for qualitative variables
+?contrasts
+```
+
+
+```{r}
+#functions in r
+
+LoadLibraries = function(){
+  library(ISLR)
+  library(MASS)
+  print("The libraries have been loaded")
+}
+```
+
+### Logistic Regression
+
+```{r}
+LoadLibraries()
+names(Smarket)
+dim(Smarket) # dimension of data
+summary(Smarket)# data description
+```
+```{r}
+cor(Smarket[,-9])
+
+```
+```{r}
+attach(Smarket)
+plot(Volume)
+```
+```{r}
+glm.fits = glm(Direction~Lag1+Lag2+Lag3+Lag4+Lag5+Volume, data = Smarket, family = binomial) #logistic regression
+summary(glm.fits)
+```
+
+```{r}
+coef(glm.fits)
+summary(glm.fits)$coef[,4] #p-values of coefficients 
+```
+```{r}
+glm.probs = predict(glm.fits, type = "response") #makes the predictions for the data points in this case predicts the probability of the market going up.
+glm.probs[1:10]
+contrasts(Direction)
+```
+```{r}
+glm.pred = rep("Down", 1250) 
+glm.pred[glm.probs > .5] = "Up" #label the probability predictions as up if the probability is greater than 0.5
+```
+```{r}
+table(glm.pred, Direction) # table function is used to compute confusion matrix
+(507 + 145)/1250 # fraction of correct predictions
+cat("fraction of correct predictions =", mean(glm.pred == Direction))
+cat("\n")
+cat("training Error rate =",1 - mean(glm.pred == Direction))
+
+```
+```{r}
+#Running the experiment by splitting the data into train(Year < 2005) and test sets
+
+train = (Year < 2005)
+Smarket.2005 = Smarket[!train,] # all rows with year !train and all columns ie. test set
+dim(Smarket.2005)
+Direction.2005 = Direction[!train] #ytest
+
+#fitting the logistic regression model
+glm.fits1 = glm(Direction~Lag1+Lag2+Lag3+Lag4+Lag5+Volume, data = Smarket, family = binomial, subset = train)
+glm.prob = predict(glm.fits1, Smarket.2005, type="response")
+
+glm.preds = rep("Up", 252)
+glm.preds[glm.prob < 0.5] = "Down"
+table(glm.preds, Direction.2005)
+mean(glm.preds == Direction.2005) # prediciton accuracy
+cat("Prediction Error rate =", mean(glm.preds != Direction.2005))
+
+```
+
+```{r}
+glm.fits1 = glm(Direction~Lag1+Lag2, data = Smarket, family = binomial, subset = train)
+glm.prob = predict(glm.fits1, Smarket.2005, type="response")
+
+glm.preds = rep("Up", 252)
+glm.preds[glm.prob < 0.5] = "Down"
+table(glm.preds, Direction.2005)
+mean(glm.preds == Direction.2005) # prediciton accuracy
+cat("Prediction Error rate =", mean(glm.preds != Direction.2005),"\n")
+
+predict(glm.fits1, newdata = data.frame(Lag1 = c(1.2, 1.5), Lag2 = c(1.1, -0.8)), type = "response")#predictions on new data
+```
+### LDA
+
+```{r}
+library(MASS)
+lda.fit = lda(Direction~Lag1+Lag2, data=Smarket, subset = train)
+lda.fit
+plot(lda.fit)
+```
+```{r}
+#par(mar=c(1,1,1,1))
+plot(lda.fit) # plot of linear discriminants obtained from -0.642 x Lag1 - 0.514 x Lag2 for each training observation. 
+```
+```{r}
+lda.pred = predict(lda.fit, Smarket.2005)
+names(lda.pred) # class contains lda predictions, posterior is a matrix containing posterior probabilities in the kth column and x contains the linear discriminants
+```
+```{r}
+lda.class = lda.pred$class 
+table(lda.class, Direction.2005) #confusion matrix
+mean(lda.class == Direction.2005)#mean direction
+```
+```{r}
+sum(lda.pred$posterior[,1]>=.5) #using 50% threshhold allows to recreate predictions in lda.pred$class
+sum(lda.pred$posterior[,1]<=.5)
+```
+Note that the posterior probabilities returned by the model is the probability of the market going down
+```{r}
+lda.pred$posterior[1:20,1] 
+```
+
+#### Quadratic discriminant analysis
+
+```{r}
+qda.fit = qda(Direction ~ Lag1 + Lag2, data = Smarket, subset = train)
+qda.fit
+#qda has no coefficients because it contains a quadratic rather than linear function of the predictors.
+```
+```{r}
+qda.class = predict(qda.fit, Smarket.2005)$class
+table(qda.class, Direction.2005)
+cat("This show the percentage of correct predictions: ", mean(qda.class == Direction.2005))
+```
+
+#### KNN 
+
+```{r}
+library(class)
+train.X = cbind(Lag1, Lag2)[train,]
+test.X = cbind(Lag1, Lag2)[!train,]
+train.Direction = Direction[train]
+
+```
+
+```{r}
+set.seed(1)
+knn.pred=knn(train.X, test.X,train.Direction, k=1) #with k =1
+table(knn.pred, Direction.2005)
+(43 + 85)/252
+```
+```{r}
+knn.pred=knn(train.X, test.X,train.Direction, k=3)# with k =3
+table(knn.pred, Direction.2005)
+#(48 + 86)/252
+mean(knn.pred == Direction.2005)
+```
+# analysis of caravan data
+
+```{r}
+dim(Caravan)
+attach(Caravan)
+summary(Purchase)
+```
+
+
+standardizing the data so that the different units of measurements do not affect the output of the knn model. This can be done by ensuring that all the variables have a mean of 0 and a standard deviation of 1. then all variables will be of a comarable scale.
+```{r}
+
+standardized.X = scale(Caravan[,-86])
+var(Caravan[,1])
+var(Caravan[,2])
+var(standardized.X[,1])
+var(standardized.X[,2])
+```
+
+```{r}
+test = 1:1000
+train.X = standardized.X[-test,]
+test.X = standardized.X[test,]
+train.Y = Purchase[-test]
+test.Y = Purchase[test]
+set.seed(1)
+knn.pred=knn(train.X,test.X,train.Y,k=1)
+table(knn.pred,test.Y)
+mean(test.Y!=knn.pred)
+#mean(test.Y == knn.pred)
+mean(test.Y!="No")
+
+#performing the predictions with larger k values yields better and better results 
+
+knn.pred=knn(train.X,test.X,train.Y,k=3)
+table(knn.pred,test.Y)
+mean(test.Y!=knn.pred)
+
+knn.pred=knn(train.X,test.X,train.Y,k=5)
+table(knn.pred,test.Y)
+mean(test.Y!=knn.pred)
+```
+```{r}
+glm.fits = glm(Purchase~.,data=Caravan, family=binomial, subset=-test)
+glm.probs = predict(glm.fits, Caravan[test,], type="response")
+glm.pred = rep("No", 1000)
+glm.pred[glm.probs>.5]="Yes"
+table(glm.pred, test.Y)
+
+#comparing the above with a probability of 0.25 being predicted as Yes
+glm.pred = rep("No", 1000)
+glm.pred[glm.probs>.25]="Yes" 
+table(glm.pred, test.Y)
+```
+
+
+#### LDA example from slides
+```{r}
+
+n = 100000
+pi1 = pi2 = 0.5
+mu1 = -2
+mu2 = 2
+sigma = 1.5
+set.seed(1235)
+n1train = rbinom(1, n, pi1)
+n2train = n - n1train
+n1test = rbinom(1, n, pi1)
+n2test = n - n1test
+train1 = rnorm(n1train, mu1, sigma)
+train2 = rnorm(n2train, mu2, sigma)
+test1 = rnorm(n1test, mu1, sigma)
+test2 = rnorm(n2test, mu2, sigma)
+sigma2.1 = var(train1)
+sigma2.2 = var(train2)
+estsigma2 = ((n1train - 1) * sigma2.1 + (n2train - 1) * sigma2.2)/(n - 2)
+rule = 0.5 * (mean(train1) + mean(train2) + estsigma2 * (log(n2train/n) - log(n1train/n))/(mean(train1)-mean(train2)))
+
+cat("Train error: ", (sum(train1 > rule) + sum(train2 < rule))/n, "\n")
+
+cat("Test error: ", (sum(test1 > rule) + sum(test2 < rule))/n)
+ 
+```
+
+
+```{r}
+library(ISLR)
+set.seed(1)
+train = sample(392,196)
+```
+
+```{r}
+lm.fit = lm(mpg~horsepower, data=Auto, subset = train)
+```
+
+```{r}
+attach(Auto, warn.conflicts = FALSE)
+#computing mean square error
+mean((mpg~predict(lm.fit,Auto))[-train]^2)
+```
+```{r}
+lm.fit2=lm(mpg~poly(horsepower,2),data = Auto,subset=train)
+mean((mpg~predict(lm.fit2,Auto))[-train]^2)
+```
+## LOOCV cross validation error
+```{r}
+library(boot)
+cv.error = rep(0,5)
+for (i in 1:5){
+  glm.fit = glm(mpg~poly(horsepower,i),data = Auto)
+  cv.error[i] = cv.glm(Auto, glm.fit)$delta[1]
+}
+
+cv.error
+```
+
+##k-fold cross validation
+```{r}
+set.seed(17)
+cv.error.10 = rep(0,10)
+for (i in 1:10){
+  glm.fit = glm(mpg~poly(horsepower,i),data = Auto)
+  cv.error.10[i] = cv.glm(Auto, glm.fit,K=10)$delta[1]
+}
+
+cv.error.10
+```
+## Best subset selection
+
+```{r}
+library(ISLR)
+fix(Hitters)
+names(Hitters)
+dim(Hitters)
+sum(is.na(Hitters$Salary))
+```
+```{r}
+Hitters=na.omit(Hitters)
+dim(Hitters)
+sum(is.na(Hitters))
+```
+```{r}
+library(leaps)
+regfit.full = regsubsets(Salary~.,Hitters)
+summary(regfit.full)
+```
+```{r}
+regfit.full=regsubsets (Salary∼.,data=Hitters ,nvmax=19)
+reg.summary = summary (regfit.full)
+names(reg.summary)
+```
+## selecting a model based on Cp, BIC, adjusted rsq and rss
+```{r}
+par(mfrow=c(2,2))
+plot(reg.summary$rss,xlab ="Number of variables",ylab="RSS",type="l")
+
+plot(reg.summary$adjr2,xlab ="Number of variables",ylab="Adjusted RSq",type="l")
+#which.max(reg.summary$adjr2)
+points(11,reg.summary$adjr2[11], col="red",cex=2,pch=20)
+
+plot(reg.summary$cp,xlab ="Number of variables",ylab="cp",type="l")
+#which.min(reg.summary$cp)
+points(10,reg.summary$cp[10], col="red",cex=2,pch=20)
+
+plot(reg.summary$bic,xlab ="Number of variables",ylab="BIC",type="l")
+#which.min(reg.summary$bic)
+points(6,reg.summary$bic[6], col="red",cex=2,pch=20)
+```
+```{r}
+
+plot(regfit.full ,scale="r2")
+plot(regfit.full ,scale="adjr2")
+plot(regfit.full ,scale="Cp")
+plot(regfit.full ,scale="bic")
+```
+
+```{r}
+coef(regfit.full ,6)
+```
+## choosing model using validation set and crossvalidation
+
+```{r}
+set.seed(1)
+train = sample(c(TRUE,FALSE), nrow(Hitters), rep=TRUE)
+test = (!train)
+```
+
+```{r}
+regfit.best = regsubsets(Salary~.,data = Hitters[train,],nvmax = 19)
+```
+
+```{r}
+test.mat = model.matrix(Salary~.,data = Hitters[test,])
+```
+## get coefficients, make predictions and compute MSE
+```{r}
+val.errors = rep(NA,19)
+for(i in 1:19){
+  coefi = coef(regfit.best,id=i)
+  pred = test.mat[,names(coefi)]%*%coefi
+  val.errors[i]=mean((Hitters$Salary[test]-pred)^2)
+}
+```
+
+```{r}
+val.errors
+```
+```{r}
+which.min(val.errors)
+coef(regfit.best,10)
+```
+## Function for computing prediction using steps from above
+```{r}
+ predict.regsubsets=function (object , newdata ,id ,...){
+   
+  form=as.formula (object$call [[2]])
+  mat=model.matrix(form ,newdata )
+  coefi=coef(object ,id=id)
+  xvars=names(coefi)
+  mat[,xvars]%*%coefi
+  }
+```
+
+#Performing best subset selection on entire data and selecting best 10 predictors model
+```{r}
+regfit.best = regsubsets(Salary~.,data = Hitters,nvmax = 19)
+coef(regfit.best,10)
+```
+###New ecample: choosing among models of different sizes using cros validation
+
+```{r}
+k = 10
+set.seed(1)
+folds = sample(1:k,nrow(Hitters),replace = TRUE)
+cv.errors = matrix(NA, k, 19, dimnames = list(NULL, paste(1:19)))
+
+```
+##performing cross validation
+```{r}
+for(j in 1:k){
+  best.fit = regsubsets(Salary~.,data = Hitters[folds!=j,],nvmax=19)
+  for(i in 1:19){
+    pred = predict(best.fit,Hitters[folds==j,],id=i)
+    cv.errors[j,i]=mean((Hitters$Salary[folds==j]-pred)^2)
+  }
+}
+```
+## average mse for each j-variable model
+```{r}
+mean.cv.errors=apply(cv.errors ,2, mean)
+mean.cv.errors
+```
+```{r}
+par(mfrow=c(1,1))
+plot(mean.cv.errors ,type='b')
+```
+## cross validation selects a 10 variable model. We use best subset selection to select the best 10 variables
+```{r}
+reg.best=regsubsets (Salary∼.,data=Hitters , nvmax=19)
+coef(reg.best ,10)
+```
+## Ridge and Lasso
+```{r}
+x = model.matrix(Salary~.,Hitters)[,-1]
+y = Hitters$Salary
+```
+
+##Ridge regression
+
+```{r}
+library(glmnet)
+grid = 10^seq(10,-2,length=100)
+ridge.mod = glmnet(x,y,alpha=0, lambda=grid)
+
+```
+#dimension of lambda coefficeint for 20 variable and 100 lamdas
+```{r}
+ dim(coef(ridge.mod))
+```
+##These are the coefficients when λ = 11,498, along with their l2 norm
+```{r}
+ridge.mod$lambda [50]
+coef(ridge.mod)[ ,50]
+```
+l2 norm
+```{r}
+ sqrt(sum(coef(ridge.mod)[-1,50]^2) )
+```
+
+using predict to obtain the ridge regression coefficients for a new value of λ, say 50:
+```{r}
+predict (ridge.mod ,s=50,type="coefficients") [1:20,]
+```
+
+## new example
+```{r}
+set.seed(1)
+train=sample (1: nrow(x), nrow(x)/2)
+test=(-train)
+y.test=y[test]
+```
+## we fit a ridge regression model on the training set, and evaluate its MSE on the test set, using λ = 4
+```{r}
+ridge.mod=glmnet(x[train ,],y[ train],alpha=0, lambda=grid,thresh =1e-12)
+ridge.pred=predict (ridge.mod ,s=4, newx=x[test ,])
+mean((ridge.pred-y.test)^2)
+```
+#use cross-validation to choose the tuning parameter λ
+```{r}
+set.seed(1)
+cv.out=cv.glmnet(x[train ,],y[ train],alpha=0)
+plot(cv.out)
+bestlam =cv.out$lambda.min
+bestlam
+
+#the value of λ that results in the smallest crossvalidation error is 212
+```
+test MSE associated with this value of
+λ?
+```{r}
+ridge.pred=predict (ridge.mod ,s=bestlam ,newx=x[test ,])
+mean((ridge.pred-y.test)^2)
+```
+##Finally, we refit our ridge regression model on the full data set, using the value of λ chosen by cross-validation, and examine the coefficient estimates
+```{r}
+out=glmnet(x,y,alpha=0)
+predict (out,type="coefficients",s= bestlam)[1:20,]
+```
+# The Lasso
+
+```{r}
+lasso.mod=glmnet(x[train ,],y[ train],alpha=1, lambda=grid)
+plot(lasso.mod)
+```
+```{r}
+set.seed(1)
+cv.out=cv.glmnet(x[train ,],y[ train],alpha=1)
+plot(cv.out)
+bestlam =cv.out$lambda.min
+lasso.pred=predict (lasso.mod ,s=bestlam ,newx=x[test ,])
+mean((lasso.pred -y.test)^2)
+```
+```{r}
+out=glmnet (x,y,alpha=1, lambda=grid)
+lasso.coef=predict (out ,type="coefficients",s= bestlam) [1:20,]
+lasso.coef
+```
+## PCR
+
+```{r}
+library (pls, warn.conflicts = FALSE)
+set.seed(2)
+pcr.fit=pcr(Salary∼.,data=Hitters,scale=TRUE,validation="CV")
+summary (pcr.fit)
+```
+```{r}
+validationplot(pcr.fit ,val.type="MSEP")
+```
+
+```{r}
+ set.seed(1)
+pcr.fit=pcr(Salary∼., data=Hitters , subset=train ,scale=TRUE,validation ="CV")
+validationplot(pcr.fit ,val.type="MSEP")
+```
+```{r}
+pcr.pred=predict (pcr.fit ,x[test ,],ncomp =7)
+mean((pcr.pred -y.test)^2)
+```
+```{r}
+pcr.fit=pcr(y∼x,scale=TRUE ,ncomp=7)
+summary (pcr.fit)
+```
+
+## PLS
+
+```{r}
+set.seed(1)
+pls.fit=plsr(Salary∼., data=Hitters , subset=train , scale=TRUE,validation ="CV")
+summary (pls.fit)
+validationplot(pls.fit ,val.type="MSEP")
+```
+## TEST MSE
+```{r}
+pls.pred=predict (pls.fit ,x[test ,],ncomp =2)
+mean((pls.pred -y.test)^2)
+```
+
+##PLS with full data set using M=2 obtained from cross validation
+```{r}
+pls.fit=plsr(Salary∼., data=Hitters , scale=TRUE , ncomp=2)
+summary (pls.fit)
+```
+
+Notice that the percentage of variance in Salary that the two-component
+PLS fit explains, 46.40 %, is almost as much as that explained using the
+6.8 Exercises 259
+final seven-component model PCR fit, 46.69 %. This is because PCR only
+attempts to maximize the amount of variance explained in the predictors,
+while PLS searches for directions that explain variance in both the predictors and the response.
+
+
+#Non linear modeling
+```{r}
+library(ISLR)
+attach(Wage, warn.conflicts = FALSE)
+```
+
+#Polynomial regresion and Step functions
+```{r}
+fit = lm(wage~poly(age,4),data=Wage)
+summary(fit)$coef
+```
+using raw = T allows to access age, age^2 etc directly.
+```{r}
+fit2 <- lm(wage~poly(age,4,raw = T), data=Wage)
+coef(summary(fit2))
+```
+same polynomial fit using cbind
+```{r}
+fit2b = lm(wage~cbind(age,age^2,age^3,age^4), data = Wage)
+summary(fit2b)
+```
+```{r}
+agelims = range(age)
+age.grid = seq(from = agelims[1], to= agelims[2])
+preds = predict(fit,newdata = list(age=age.grid), se=TRUE)
+se.bands =cbind(preds$fit +2*preds$se.fit, preds$fit -2*preds$se.fit)
+
+```
+making the plot 
+```{r}
+par(mfrow=c(1,2), mar=c(4.5,4.5,1,1), oma = c(0,0,4,0))
+plot(age,wage,xlim = agelims, cex=.5, col="darkgrey")
+title("Degree-4 Polynomial", outer = T)
+lines(age.grid, preds$fit, lwd=2, col="blue")
+matlines(age.grid,se.bands,lwd = 1,col = "blue", lty = 3)
+```
+whether or not an orthogonal set of basis functions is produced in the poly() function will not affect the model obtained in a meaningful way. What do we mean by this? The fitted values obtained in either case are identical
+
+```{r}
+pred2 = predict(fit2,newdata=list(age=age.grid),se=TRUE)
+max(abs(preds$fit-pred2$fit))
+```
+We use hypothesis tests to determine the degree of polynomial to use in our regression. Cross validation is another alternative
+We use the anova() function, which performs an anova() analysis of variance (ANOVA, using an F-test) in order to test the null analysis of hypothesis that a model M1 is sufficient to explain the data against the variance
+alternative hypothesis that a more complex model M2 is required
+```{r}
+fit.1 = lm(wage~age,data = Wage)
+fit.2 = lm(wage~poly(age,2), data = Wage)
+fit.3 = lm(wage~poly(age,3), data = Wage)
+fit.4 = lm(wage~poly(age,4), data = Wage)
+fit.5 = lm(wage~poly(age,5), data = Wage)
+anova(fit.1,fit.2,fit.3,fit.4,fit.5)
+```
+The p-value comparing the linear Model 1 to the quadratic Model 2 is
+essentially zero (<10−15), indicating that a linear fit is not sufficient. Similarly the p-value comparing the quadratic Model 2 to the cubic Model 3
+is very low (0.0017), so the quadratic fit is also insufficient. The p-value
+comparing the cubic and degree-4 polynomials, Model 3 and Model 4, is approximately 5 % while the degree-5 polynomial Model 5 seems unnecessary
+because its p-value is 0.37. Hence, either a cubic or a quartic polynomial
+appear to provide a reasonable fit to the data, but lower- or higher-order
+models are not justified.
+
+```{r}
+coef(summary(fit.5))
+```
+fitting a logistic regression
+```{r}
+fit = glm(I(wage>250)~poly(age,4), data= Wage, family = binomial)
+preds = predict(fit, newdata = list(age=age.grid), se=T)
+```
+
+the confidence interval is obtained by the formular exp(X*beta)/1+exp(X*beta)
+```{r}
+pfit = exp(preds$fit)/(1+exp(preds$fit))
+se.bands.logit = cbind(preds$fit+2*preds$se.fit, preds$fit+2*preds$se.fit)
+se.bands = exp(se.bands.logit)/(1+exp(se.bands.logit))
+```
+
+#rug plot
+```{r}
+plot(age,I(wage>250), xlim=agelims, type = "n", ylim = c(0,0.2))
+points(jitter(age), I((wage>250)/5), cex =.5, pch="|", col="darkgrey")
+lines(age.grid, pfit,lwd = 2, col="blue")
+matlines(age.grid, se.bands, lwd = 1, col = "blue", lty = 3)
+```
+## fitting a step-wise function
+```{r}
+table(cut(age,4))
+fit = lm(wage~cut(age,4),data=Wage)
+coef(summary(fit))
+```
+We could use the option breaks to specify our own cutoffs. 
+
+We could produce predictions and plots just as we did in the polynomial regression.
+
+## splines
+```{r}
+library(splines)
+fit = lm(wage~bs(age,knots = c(25,40,60)), data=Wage)
+pred = predict(fit,newdata = list(age=age.grid), se = T)
+plot(age, wage, col="gray")
+lines(age.grid, pred$fit, lwd=2)
+lines(age.grid, pred$fit+2*pred$se, lty="dashed")
+lines(age.grid, pred$fit-2*pred$se, lty="dashed")
+```
+Recall that a cubic spline with three knots has seven degrees of freedom; these degrees of freedom are used up by an intercept, plus six basis functions
+
+```{r}
+
+#2 different ways of producing knots
+dim(bs(age,knots = c(25,40,60)))
+dim(bs(age,df=6))
+attr(bs(age,df=6), "knots")
+
+#bs has argument degree which can be set to any degree other than the default 3(cubic spline)
+```
+#natural spline
+
+```{r}
+fit2 = lm(wage~ns(age,df=4), data = Wage)
+pred2 = predict(fit2, newdata = list(age.grid), se=T)
+lines(age.grid, pred2$fit, col = "red", lwd = 2)
+```
+
+#smoothing spline
+
+```{r}
+plot(age,wage,xlim = agelims, cex=.5, col="darkgrey")
+title("Smoothing Spline")
+fit=smooth.spline(age,wage,df=16)
+fit2=smooth.spline(age,wage,cv=TRUE)
+fit2$df
+lines(fit,col="red",lwd=2)
+lines(fit2, col="blue", lwd=2)
+legend("topright", legend = c("16 DF", "6.8 DF"), col = c("red","blue"), lty = 1, lwd = 2, cex = .8)
+```
+we specified df=16. The function then determines which value of λ leads to 16 degrees of freedom. In the second call to smooth.spline(), we select the smoothness level by crossvalidation; this results in a value of λ that yields 6.8 degrees of freedom.
+
+## local regression
+```{r}
+plot(age,wage,xlim = agelims, cex=.5, col="darkgrey")
+title("Local regression")
+fit=loess(wage~age,span=.2, data=Wage)
+fit2=loess(wage~age,span=.5, data=Wage)
+
+lines(age.grid,predict(fit,data.frame(age=age.grid)),col="red",lwd=2)
+lines(age.grid,predict(fit2,data.frame(age=age.grid)), col="blue", lwd=2)
+legend("topright", legend = c("Span = 0.2", "Span = 0.5"), col = c("red","blue"), lty = 1, lwd = 2, cex = .8)
+```
+Here we have performed local linear regression usin spans of 0.2 and 0.5: that is, each neighborhood consists of 20 % or 50 % of the observations. The larger the span, the smoother the fit.
+
+## GAM
+```{r}
+gam1 = lm(wage~ns(year,4)+ns(age,5)+education, data = Wage)
+```
+fittin gam with smoothing splines
+```{r}
+library(gam)
+gam.m3 = gam(wage~s(year,4)+s(age,5)+education, data = Wage)
+par(mfrow=c(1,3))
+plot(gam.m3, se=TRUE, col="blue")
+```
+```{r}
+par(mfrow=c(1,3))
+plot.Gam(gam1,se=TRUE,col="red")
+```
+```{r}
+gam.m1=gam(wage~s(age,5)+education, data = Wage)
+gam.m2=gam(wage~year+s(age,5)+education, data = Wage)
+anova(gam.m1, gam.m2,gam.m3, test="F")
+```
+We find that there is compelling evidence that a GAM with a linear function of year is better than a GAM that does not include year at all
+(p-value = 0.00014). However, there is no evidence that a non-linear function of year is needed (p-value = 0.349). In other words, based on the results
+of this ANOVA, M2 is preferred.
+
+```{r}
+summary(gam.m3)
+```
+The p-values for year and age correspond to a null hypothesis of a linear relationship versus the alternative of a non-linear relationship. The large p-value for year reinforces our conclusion from the ANOVA test that a linear function is adequate for this term. However, there is very clear evidence that a non-linear term is required for age.
+
+```{r}
+preds = predict(gam.m2, newdata = Wage) #prediction
+```
+## GAMs with local regression
+```{r}
+par(mfrow=c(1,3))
+gam.lo = gam(wage~s(year,df=4)+lo(age,span = 0.7)+education, data = Wage)
+plot.Gam(gam.lo, se=TRUE, col="green")
+```
+
+## lo() with interaction
+```{r}
+gam.lo.i = gam(wage~lo(year,age,span=0.5)+education,data = Wage)
+```
+akima package for plotting the interaction
+```{r}
+library(akima)
+par(mfrow=c(1,2))
+plot(gam.lo.i)
+```
+##GAM logistic regression
+```{r}
+gam.lr = gam(I(wage>250)~year+s(age,df=5)+education, family = "binomial", data = Wage)
+
+par(mfrow=c(1,3))
+plot(gam.lr, se=TRUE, col="green")
+```
+```{r}
+table(education, I(wage>250))
+```
+It is easy to see that there are no high earners in the <HS category
+
+```{r}
+gam.lr.s = gam(I(wage>250)~year+s(age,df=5)+education, family = "binomial", data = Wage, subset=(education != "1. < HS Grad"))
+par(mfrow=c(1,3))
+plot(gam.lr.s, se=TRUE, col="green")
+```
+
+### Fitting classification trees
+
+```{r}
+library(tree)
+library(ISLR)
+attach(Carseats)
+High = ifelse(Sales<=8, "No", "Yes")
+Carseats = data.frame(Carseats, High)
+```
+- fit a classification tree in order to predict tree()
+High using all variables but Sales
+
+```{r}
+tree.carseats = tree(High ~.-Sales, data = Carseats)
+summary(tree.carseats)
+```
+- A small deviance indicates a tree that provides
+a good fit to the (training) data
+```{r}
+plot(tree.carseats)
+text(tree.carseats, pretty = 0)
+tree.carseats
+```
+# predicting from test data
+```{r}
+set.seed(2)
+train = sample(1:nrow(Carseats), 200)
+Carseats.test = Carseats[-train,]
+High.test = High[-train]
+tree.carseats = tree(High~.-Sales, Carseats, subset=train)
+tree.pred=predict(tree.carseats, Carseats.test, type = "class")
+table(tree.pred,High.test)
+cat("Prediction accuracy: ",(104+50)/200)
+```
+# pruning
+ cost complexity pruning
+is used in order to select a sequence of trees for consideration
+```{r}
+set.seed(3)
+cv.carseats = cv.tree(tree.carseats, FUN = prune.misclass)
+names(cv.carseats)
+cv.carseats
+```
+- here the tree with 21 nodes has the smallest error rate hence is the optimal but I select 8
+
+#plotting the error against tree size
+```{r}
+par(mfrow=c(1,2))
+plot(cv.carseats$size, cv.carseats$dev, type="b")
+plot(cv.carseats$k, cv.carseats$dev, type="b")
+```
+#prunned tree
+```{r}
+prune.carseats = prune.misclass(tree.carseats, best = 8)
+plot(prune.carseats)
+text(prune.carseats, pretty=0)
+```
+# predicting with test data after prunning
+```{r}
+tree.pred = predict(prune.carseats, Carseats.test, type = "class")
+table(tree.pred, High.test)
+(89+62)/200
+```
+
+## fitting regression tree
+
+```{r}
+library(MASS)
+set.seed(1)
+train = sample(1:nrow(Boston), nrow(Boston)/2)
+tree.boston = tree(medv~.,Boston, subset=train)
+summary(tree.boston)
+```
+#plot tree
+```{r}
+plot(tree.boston)
+text(tree.boston, pretty= 0)
+```
+# checking if prunning would improve accuracy with cv.tree
+```{r}
+cv.boston = cv.tree(tree.boston)
+plot(cv.boston$size, cv.boston$dev, type ="b")
+```
+
+# making prediction on the test set
+```{r}
+yhat = predict(tree.boston, newdata = Boston[-train, ])
+boston.test = Boston[-train,"medv"]
+plot(yhat,boston.test)
+abline(0,1)
+mean((yhat-boston.test)^2)
+```
+
+# Bagging and Random Forests
+Bagging is a special case of random forest with m=p
+#Bagging
+```{r}
+library(randomForest)
+set.seed(1)
+bag.boston = randomForest(medv~.,data=Boston,subset=train, mtry=13, importance=TRUE) #mtry 13 means all 13 predictors should be considered for each split of the tree ie. bagging should be done
+
+bag.boston
+```
+# predicting on test set
+```{r}
+yhat.bag = predict(bag.boston, newdata = Boston[-train,])
+plot(yhat.bag, boston.test)
+abline(0,1)
+mean((yhat.bag-boston.test)^2)
+```
+- we can use ntree to select number of trees grown
+```{r}
+bag.boston = randomForest(medv~.,data=Boston,subset=train, mtry=13, ntree=25)
+yhat.bag = predict(bag.boston, newdata=Boston[-train,])
+mean((yhat.bag-boston.test)^2)
+```
+## Random forests
+By default, randomForest()
+uses p/3 variables when building a random forest of regression trees, and
+√p variables when building a random forest of classification trees
+
+```{r}
+set.seed(1)
+rf.boston = randomForest(medv~., data = Boston, subset = train, mtry=6, importance = TRUE)
+yhat.rf = predict(rf.boston, newdata = Boston[-train, ])
+mean((yhat.rf-boston.test)^2)
+importance(rf.boston) #check importance of each variable
+```
+Random forest yields improved results over bagging
+Two measures of variable importance are reported. The former is based
+upon the mean decrease of accuracy in predictions on the out of bag samples
+when a given variable is excluded from the model. The latter is a measure
+of the total decrease in node impurity that results from splits over that
+variable, averaged over all trees (this was plotted in Figure 8.9). In the
+case of regression trees, the node impurity is measured by the training
+RSS, and for classification trees by the deviance
+
+# plot of importance
+```{r}
+varImpPlot(rf.boston)
+```
+## Boosting
+We run gbm() with the option
+distribution="gaussian" since this is a regression problem; if it were a binary classification problem, we would use distribution="bernoulli". The
+argument n.trees=5000 indicates that we want 5000 trees, and the option
+interaction.depth=4 limits the depth of each tree.
+
+```{r}
+library(gbm)
+set.seed(1)
+boost.boston = gbm(medv~., data=Boston[train,], distribution = "gaussian", n.trees = 5000, interaction.depth = 4)
+summary(boost.boston) # produces relative influence plot and stats for boosting
+```
+# partial dependence plots
+These plots illustrate the marginal effect of the selected variables on the response after
+integrating out the other variables. In this case, as we might expect, median
+house prices are increasing with rm and decreasing with lstat.
+
+```{r}
+par(mfrow=c(1,2))
+plot(boost.boston, i="rm")
+plot(boost.boston, i="lstat")
+```
+# using the boosted model to predict 
+```{r}
+yhat.boost = predict(boost.boston, newdata = Boston[-train,], n.trees = 5000)
+mean((yhat.boost-boston.test)^2)
+```
+# changing shrinkage parameter lambda, default is 0.001
+
+```{r}
+boost.boston = gbm(medv~., data = Boston[train,], distribution = "gaussian", n.trees = 5000, interaction.depth = 4, shrinkage = 0.2, verbose = F)
+yhat.boost=predict(boost.boston, newdata = Boston[-train,], n.trees = 5000)
+mean((yhat.boost-boston.test)^2)
+```
+
+# Support Vector Machines(SVM)
+ A cost argument allows us to specify the cost of
+a violation to the margin. When the cost argument is small, then the margins will be wide and many support vectors will be on the margin or will
+violate the margin. When the cost argument is large, then the margins will
+be narrow and there will be few support vectors on the margin or violating
+the margin. the svm() function can be used to fit a support vector classifier when the argument kernel="linear" is used
+
+#support vector classifier
+We begin by generating the observations, which belong
+to two classes, and checking whether the classes are linearly separable. They are not
+```{r}
+set.seed(1)
+x=matrix(rnorm(20*2), ncol=2)
+y=c(rep(-1,10), rep(1,10))
+x[y==1]=x[y==1,] + 1
+plot(x, col=(3-y))
+```
+Note that in order for the svm() function to perform classification (as opposed to SVM-based
+regression), we must encode the response as a factor variable
+```{r}
+dat = data.frame(x=x, y=as.factor(y))
+library(e1071)
+svmfit=svm(y~., data = dat, kernel="linear", cost=10, scale = FALSE)
+plot(svmfit, dat)
+```
+```{r}
+svmfit$index
+summary(svmfit)
+```
+# fitting the model w/ smaller cost
+```{r}
+svmfit=svm(y~., data = dat, kernel="linear", cost=0.1, scale = FALSE)
+plot(svmfit, dat)
+svmfit$index
+summary(svmfit)
+```
+# performing cross validation with range of cost values on SVM
+```{r}
+set.seed(1)
+tune.out = tune(svm, y~., data=dat,kernel ="linear", ranges = list(cost=c(0.001,0.01,0.1,1,5,10,100)))
+summary(tune.out) # gives cross validation errors
+```
+# best model from cross-validation
+```{r}
+bestmod = tune.out$best.model
+summary(bestmod)
+```
+#test
+```{r}
+# generating test data
+xtest = matrix(rnorm(20*2), ncol = 2)
+ytest=  sample(c(-1,1), 20, rep = TRUE)
+xtest[ytest==1,] = xtest[ytest==1,] + 1
+testdat = data.frame(x=xtest, y=as.factor(ytest))
+
+#predicting
+ypred = predict(bestmod, testdat)
+table(predict = ypred, truth=testdat$y)
+```
+# linearly seperable data
+```{r}
+x[y==1,] = x[y==1,]+0.5
+plot(x, col=(y+5)/2, pch = 19)
+```
+#using smaller cost
+```{r}
+dat = data.frame(x=x,y=as.factor(y))
+svmfit = svm(y~., data=dat, kernel = "linear", cost=1e5)
+summary(svmfit)
+plot(svmfit,dat)
+```
+
+```{r}
+svmfit = svm(y~., data=dat, kernel = "linear", cost=1)
+summary(svmfit)
+plot(svmfit,dat)
+```
+
+# Support vector machine
+polynomial requires d , radial requires gamma
+#generating data with nonlinear class boundary
+```{r}
+set.seed(1)
+x=matrix(rnorm(200*2), ncol=2)
+x[1:100,]=x[1:100,]+2
+x[101:150,]=x[101:150,]-2
+y = c(rep(1,150), rep(2,50))
+dat = data.frame(x=x,y=as.factor(y))
+plot(x,col=y)
+```
+```{r}
+train = sample(200, 100)
+svmfit=svm(y~.,data=dat[train,], kernel="radial", gamma = 1, cost = 1)
+plot(svmfit, dat[train,])
+summary(svmfit)
+```
+```{r}
+svmfit=svm(y~.,data=dat[train,], kernel="radial", gamma = 1, cost = 1e5) #using smaller cost
+plot(svmfit, dat[train,])
+```
+This kind of decision boundary reduces training error but increases risk of overfitting
+
+#usin cross validation to select gamma and cost
+```{r}
+set.seed(1)
+tune.out = tune(svm, y~., data=dat[train,],kernel ="radial", ranges = list(cost=c(0.1,1,10,100,1000), gamma =c(0.5,1,2,3,4)))
+summary(tune.out) # gives cross validation errors
+```
+# testing model on test set
+
+```{r}
+table(true=dat[-train, "y"], pred=predict(tune.out$best.model,newdata = dat[-train,]))
+```
+ROC Curves
+```{r}
+library(ROCR)
+rocplot = function(pred,truth, ...){
+  predob = prediction(pred, truth)
+  perf = performance(predob, "tpr", "fpr")
+  plot(perf,...)
+}
+```
+```{r}
+svmfit.opt=svm(y~.,data=dat[train,], kernel="radial", gamma = 2, cost = 1, decision.values=T) #to obtain the fitted values for a given SVM model fit, we use decision.values=TRUE when fitting svm()
+fitted=attributes(predict(svmfit.opt,dat[train,],decision.values=TRUE))$decision.values
+#producing roc curve
+rocplot(fitted,dat[train,"y"],main="Training Data")
+
+#larger gamma to produce more flexible thing
+svmfit.flex=svm(y~.,data=dat[train,], kernel="radial", gamma = 50, cost = 1, decision.values=T) 
+fitted=attributes(predict(svmfit.flex,dat[train,],decision.values=TRUE))$decision.values
+
+
+rocplot(fitted,dat[train,"y"],add=T, col="red")
+```
+
+
+#on test data
+```{r}
+fitted=attributes(predict(svmfit.opt,dat[-train,],decision.values=TRUE))$decision.values
+#producing roc curve
+rocplot(fitted,dat[train,"y"],main="Test Data")
+fitted=attributes(predict(svmfit.flex,dat[-train,],decision.values=TRUE))$decision.values
+rocplot(fitted,dat[train,"y"],add=T,col ="red" )
+```
+#SVM with multiple classes
+
+```{r}
+set.seed(1)
+x=rbind(x, matrix(rnorm(50*2), ncol=2))
+y=c(y, rep(0,50))
+x[y==0,2]=x[y==0,2]+2
+dat=data.frame(x=x, y=as.factor(y))
+par(mfrow=c(1,1))
+plot(x,col=(y+1))
+```
+# fitting svm on multiole classes
+```{r}
+svmfit=svm(y~.,data=dat, kernel="radial", gamma = 1, cost = 10)
+plot(svmfit, dat)
+summary(svmfit)
+```
+# svm on real data
+```{r}
+names(Khan)
+dim(Khan$xtrain)
+dim(Khan$xtest)
+length(Khan$ytrain)
+length(Khan$ytest)
+```
+```{r}
+table(Khan$ytrain)
+table(Khan$ytrain)
+```
+ In this data set, there are a very large number
+of features relative to the number of observations. This suggests that we
+should use a linear kernel, because the additional flexibility that will result
+from using a polynomial or radial kernel is unnecessary
+
+```{r}
+dat = data.frame(x=Khan$xtrain, y=as.factor(Khan$ytrain))
+out=svm(y~.,data=dat, kernel="linear", cost=10)
+summary(out)
+table(out$fitted, dat$y)
+```
+```{r}
+dat.te = data.frame(x=Khan$xtest, y=as.factor(Khan$ytest))
+pred.te=predict(out, newdata = dat.te)
+summary(out)
+table(pred.te, dat.te$y)
+```
+##Principal component Analysis
+
+```{r}
+states = row.names(USArrests)
+names(USArrests)
+```
+```{r}
+# exploring the data. _means
+apply(USArrests,2,mean)
+apply(USArrests,2,var) 
+```
+Shows vastly different variances and means
+Hence we need to scale before performing PCA. The principal components would be run by the component with greatest variance and mean if scaling is not done.
+
+```{r}
+pr.out = prcomp(USArrests, scale=TRUE)
+names(pr.out)
+```
+center = mean, scale = standard deviation of variables used for scaling
+rotation = principal component loadings vector 
+x = columns of x has the principal component score
+```{r}
+pr.out$center
+pr.out$scale
+pr.out$rotation
+dim(pr.out$x)
+```
+plot first 2 principal components
+```{r}
+biplot(pr.out, scale=0)
+```
+change in principal component sign
+```{r}
+pr.out$rotation = -pr.out$rotation
+pr.out$x = -pr.out$x
+biplot(pr.out, scale=0)
+```
+#standard deviations of the PCs
+```{r}
+pr.out$sdev
+
+pr.var = pr.out$sdev^2 #variance
+pr.var
+```
+#proportion of variance explained by each PC
+```{r}
+pve = pr.var/sum(pr.var)
+pve
+```
+#plotting pve and cummulative pve
+```{r}
+par(mfrow=c(1,2))
+plot(pve,xlab="principal Component", ylab = "Proportion of variance explained", ylim=c(0,1), type="b")
+plot(cumsum(pve),xlab="principal Component", ylab = "Cumulative proportion of variance explained", ylim=c(0,1), type="b")
+```
+#Clustering
+#K-means clustering
+
+```{r}
+set.seed(2)
+x=matrix(rnorm(50*2), ncol=2)
+x[1:25,1] = x[1:25,1]+3
+x[1:25,2] = x[1:25,2]+4
+```
+
+kmeans clustering k=2
+```{r}
+km.out = kmeans(x,2,nstart = 20)
+km.out$cluster #cluster assignments
+```
+#plotting cluster by color
+
+```{r}
+plot(x, col=(km.out$cluster+1), main="K-Means clustering Results with k=2", xlab="", ylab="", pch=20, cex=2)
+```
+# k=3
+```{r}
+set.seed(4)
+km.out = kmeans(x,3,nstart = 20)
+km.out
+plot(x, col=(km.out$cluster+1), main="K-Means clustering Results with k=3", xlab="", ylab="", pch=20, cex=2)
+```
+#comparing nstat =1 and nstat=20
+```{r}
+set.seed(3)
+km.out = kmeans(x,3,nstart = 1) #nstart is intial random cluster assignment. must be large
+km.out$tot.withinss # within cluster sum of squares which we aim to reduce in k clustering
+km.out = kmeans(x,3,nstart = 20) #nstart is intial random cluster assignment. must be large
+km.out$tot.withinss
+km.out = kmeans(x,3,nstart = 50) #nstart is intial random cluster assignment. must be large
+km.out$tot.withinss
+```
+larger nstat is better
+
+#Hierarchical clustering
+```{r}
+#dist() computes the dissimilarity btn observations
+hc.complete = hclust(dist(x), method="complete") #complete linkage
+hc.average = hclust(dist(x), method="average") #average linkage
+hc.single = hclust(dist(x), method="single") # single linkage 
+```
+# dendogram plots
+```{r}
+par(mfrow=c(1,3))
+plot(hc.complete, main="Complete Linkage", xlab="", ylab="", pch=20, cex=.9)
+plot(hc.average, main="average Linkage", xlab="", ylab="", pch=20, cex=.9)
+plot(hc.single, main="single Linkage", xlab="", ylab="", pch=20, cex=.9)
+```
+#cluster labels for each observation associated with a given cut of the dendrogram
+```{r}
+cutree(hc.complete, 2)
+cutree(hc.average, 2)
+cutree(hc.single, 4) #4 is the numer of clusters
+```
+# scaling before hierachical clustering
+
+```{r}
+xsc = scale(x)
+plot(hclust(dist(xsc), method="complete"), main="Hierachical clustering with scaled features")
+
+```
+#correlation based distance
+```{r}
+x=matrix(rnorm (30*3), ncol=3)
+dd=as.dist(1-cor(t(x)))
+plot(hclust(dd, method ="complete"), main=" Complete Linkage with Correlation -Based Distance ", xlab="", sub ="")
+```
+
+#PCA and Hierarchical clustering on real data cancer gene data
+```{r}
+library(ISLR)
+nci.labs=NCI60$labs
+nci.data=NCI60$data
+dim(nci.data)
+nci.labs[1:4] #labels
+table(nci.labs)
+```
+#PCA
+
+#packages to install before knitting
+
+#to knit the rmd
+install.packages('knitr')
+install.packages('rmarkdown')
+#nice tables in rmd
+install.packages('kableExtra')
+#plotting
+install.packages('ggplot2')
+install.packages('ggpubr')
+install.packages('GGally')
+#datasets
+install.packages('rmarkdown')
+
+```{r}
+Auto = read.csv('C:/Users/Sammy/Downloads/STA530/Auto.csv')
+names(Auto)
+```
+```{r}
+
+
+
+
+```
+
+
+Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Ctrl+Alt+I*.
+
+
+When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Ctrl+Shift+K* to preview the HTML file).
+
+The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.
